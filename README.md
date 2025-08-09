@@ -10,6 +10,13 @@ A Model Context Protocol (MCP) server that provides integration with Trello boar
 - ✅ Rate limiting and error handling
 - ✅ Board management tools
 - ✅ Board resource provider
+- ✅ List management tools
+- ✅ List resource provider
+- ✅ Card management tools
+- ✅ Card resource provider
+- ✅ Comment management
+- ✅ Label and member assignment
+- ✅ Attachment management
 
 ### Board Tools
 - `list_boards` - List all accessible boards
@@ -20,8 +27,39 @@ A Model Context Protocol (MCP) server that provides integration with Trello boar
 - `reopen_board` - Reopen a closed board
 - `delete_board` - Permanently delete a board
 
+### List Tools
+- `list_lists` - List all lists on a board
+- `get_list` - Get detailed list information
+- `create_list` - Create a new list on a board
+- `update_list` - Update list properties
+- `archive_list` - Archive a list
+- `unarchive_list` - Unarchive a list
+- `move_list` - Move a list to different position
+- `get_list_cards` - Get all cards in a specific list
+
+### Card Tools
+- `get_card` - Get detailed card information
+- `create_card` - Create a new card in a list
+- `update_card` - Update card properties
+- `move_card` - Move a card to different list
+- `archive_card` - Archive a card
+- `unarchive_card` - Unarchive a card
+- `delete_card` - Permanently delete a card
+- `add_comment` - Add comment to a card
+- `edit_comment` - Edit existing comment
+- `delete_comment` - Delete a comment
+- `add_label_to_card` - Add label to card
+- `remove_label_from_card` - Remove label from card
+- `assign_member_to_card` - Assign member to card
+- `remove_member_from_card` - Remove member from card
+- `add_attachment_url` - Add URL attachment to card
+- `remove_attachment` - Remove attachment from card
+- `get_card_actions` - Get card activity history
+
 ### Resources
 - `trello:board/{id}` - Comprehensive board information with human-readable summary
+- `trello:list/{id}` - Detailed list information with all cards and activity
+- `trello:card/{id}` - Rich card details with description, members, labels, checklists, attachments, and comments
 
 ## Quick Start
 
@@ -143,29 +181,48 @@ src/
 
 ## Development Roadmap
 
-### Phase 5: Lists Tools (Next)
-- [ ] `list_lists` - Get lists on a board
-- [ ] `create_list` - Create a new list
-- [ ] `update_list` - Update list properties
-- [ ] `archive_list` - Archive a list
-- [ ] `unarchive_list` - Unarchive a list
+### Phase 5: Lists Tools ✅ Completed
+- ✅ `list_lists` - Get lists on a board
+- ✅ `create_list` - Create a new list
+- ✅ `update_list` - Update list properties
+- ✅ `archive_list` - Archive a list
+- ✅ `unarchive_list` - Unarchive a list
+- ✅ `move_list` - Move lists to different positions
+- ✅ `get_list_cards` - Get all cards in a list
 
-### Phase 6: Cards Core Tools
-- [ ] `create_card` - Create a new card
-- [ ] `update_card` - Update card properties
-- [ ] `move_card` - Move card between lists
-- [ ] `archive_card` - Archive a card
-- [ ] `add_comment` - Add comment to card
-- [ ] `add_label` - Add label to card
-- [ ] `assign_member` - Assign member to card
+### Phase 6: Cards Core Tools ✅ Completed
+- ✅ `get_card` - Get detailed card information
+- ✅ `create_card` - Create a new card
+- ✅ `update_card` - Update card properties
+- ✅ `move_card` - Move card between lists
+- ✅ `archive_card` - Archive a card
+- ✅ `unarchive_card` - Unarchive a card
+- ✅ `delete_card` - Permanently delete a card
+- ✅ `add_comment` - Add comment to card
+- ✅ `edit_comment` - Edit existing comment
+- ✅ `delete_comment` - Delete a comment
+- ✅ `add_label_to_card` - Add label to card
+- ✅ `remove_label_from_card` - Remove label from card
+- ✅ `assign_member_to_card` - Assign member to card
+- ✅ `remove_member_from_card` - Remove member from card
+- ✅ `add_attachment_url` - Add URL attachment
+- ✅ `remove_attachment` - Remove attachment
+- ✅ `get_card_actions` - Get card activity history
 
-### Phase 7-14: Advanced Features
-- [ ] Checklists and attachments
-- [ ] Labels and search
+### Phase 7: Checklists and Advanced Card Features (Next)
+- [ ] `add_checklist` - Add checklist to card
+- [ ] `add_checkitem` - Add item to checklist
+- [ ] `update_checkitem` - Update checklist item
+- [ ] `delete_checkitem` - Remove checklist item
+- [ ] `delete_checklist` - Remove entire checklist
+
+### Phase 8-14: Advanced Features
+- [ ] Labels management (create, update, delete labels)
+- [ ] Search functionality
 - [ ] Batch operations
 - [ ] Webhooks (optional)
 - [ ] OAuth 2.0 multi-user support
-- [ ] Deployment and documentation
+- [ ] Deployment guides and documentation
 
 ## Error Handling
 
