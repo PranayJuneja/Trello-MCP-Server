@@ -112,6 +112,31 @@ import {
 // Checklist resources
 import { readChecklistResource } from './resources/checklist.js';
 
+// Label tools
+import {
+  getLabelSchema,
+  getLabelsOnBoardSchema,
+  createLabelSchema,
+  updateLabelSchema,
+  deleteLabelSchema,
+  updateLabelFieldSchema,
+  getLabelUsageSchema,
+  bulkUpdateLabelsSchema,
+  getCardsWithLabelSchema,
+  getLabel,
+  getLabelsOnBoard,
+  createLabel,
+  updateLabel,
+  deleteLabel,
+  updateLabelField,
+  getLabelUsage,
+  bulkUpdateLabels,
+  getCardsWithLabel,
+} from './tools/labels.js';
+
+// Label resources
+import { readLabelResource } from './resources/label.js';
+
 export function registerAllToolsAndResources() {
   // ===== BOARD TOOLS =====
   
@@ -415,6 +440,71 @@ export function registerAllToolsAndResources() {
     getCheckItem
   );
 
+  // ===== LABEL TOOLS =====
+  
+  trelloMcpServer.registerTool(
+    'get_label',
+    'Get detailed information about a specific label',
+    getLabelSchema,
+    getLabel
+  );
+  
+  trelloMcpServer.registerTool(
+    'get_labels_on_board',
+    'Get all labels on a specific board',
+    getLabelsOnBoardSchema,
+    getLabelsOnBoard
+  );
+  
+  trelloMcpServer.registerTool(
+    'create_label',
+    'Create a new label on a board',
+    createLabelSchema,
+    createLabel
+  );
+  
+  trelloMcpServer.registerTool(
+    'update_label',
+    'Update an existing label\'s properties',
+    updateLabelSchema,
+    updateLabel
+  );
+  
+  trelloMcpServer.registerTool(
+    'delete_label',
+    'Delete a label from a board',
+    deleteLabelSchema,
+    deleteLabel
+  );
+  
+  trelloMcpServer.registerTool(
+    'update_label_field',
+    'Update a specific field of a label',
+    updateLabelFieldSchema,
+    updateLabelField
+  );
+  
+  trelloMcpServer.registerTool(
+    'get_label_usage',
+    'Get usage statistics and information for a label',
+    getLabelUsageSchema,
+    getLabelUsage
+  );
+  
+  trelloMcpServer.registerTool(
+    'bulk_update_labels',
+    'Update multiple labels at once',
+    bulkUpdateLabelsSchema,
+    bulkUpdateLabels
+  );
+  
+  trelloMcpServer.registerTool(
+    'get_cards_with_label',
+    'Find all cards that use a specific label',
+    getCardsWithLabelSchema,
+    getCardsWithLabel
+  );
+
   // ===== BOARD RESOURCES =====
   
   trelloMcpServer.registerResource(
@@ -453,5 +543,15 @@ export function registerAllToolsAndResources() {
     'Get comprehensive information about a Trello checklist including all check items, progress tracking, and context',
     'application/json',
     readChecklistResource
+  );
+
+  // ===== LABEL RESOURCES =====
+  
+  trelloMcpServer.registerResource(
+    'trello:label/{id}',
+    'Label Details',
+    'Get comprehensive information about a Trello label including usage statistics, color visualization, and associated cards',
+    'application/json',
+    readLabelResource
   );
 }

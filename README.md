@@ -21,6 +21,10 @@ A Model Context Protocol (MCP) server that provides integration with Trello boar
 - ✅ Checklist resource provider
 - ✅ Check item operations
 - ✅ Progress tracking
+- ✅ Label management tools
+- ✅ Label resource provider
+- ✅ Color visualization
+- ✅ Usage analytics
 
 ### Board Tools
 - `list_boards` - List all accessible boards
@@ -72,11 +76,23 @@ A Model Context Protocol (MCP) server that provides integration with Trello boar
 - `get_checkitems` - Get all items in checklist with filtering
 - `get_checkitem` - Get detailed check item information
 
+### Label Tools
+- `get_label` - Get detailed label information
+- `get_labels_on_board` - Get all labels on a board
+- `create_label` - Create new label on a board
+- `update_label` - Update label properties (name, color)
+- `delete_label` - Delete a label
+- `update_label_field` - Update specific label field
+- `get_label_usage` - Get label usage statistics and analytics
+- `bulk_update_labels` - Update multiple labels simultaneously
+- `get_cards_with_label` - Find all cards using a specific label
+
 ### Resources
 - `trello:board/{id}` - Comprehensive board information with human-readable summary
 - `trello:list/{id}` - Detailed list information with all cards and activity
 - `trello:card/{id}` - Rich card details with description, members, labels, checklists, attachments, and comments
 - `trello:checklist/{id}` - Detailed checklist with progress tracking, item status, and context
+- `trello:label/{id}` - Label details with color visualization, usage analytics, and management suggestions
 
 ## Quick Start
 
@@ -238,17 +254,29 @@ src/
 - ✅ `get_checkitems` - Get items with filtering
 - ✅ `get_checkitem` - Get check item details
 
-### Phase 8: Labels Management (Next)
-- [ ] `get_labels` - List labels on a board
-- [ ] `create_label` - Create new label
-- [ ] `update_label` - Update label properties
-- [ ] `delete_label` - Delete a label
+### Phase 8: Labels Management ✅ Completed
+- ✅ `get_label` - Get label details and usage statistics
+- ✅ `get_labels_on_board` - List all labels on a board
+- ✅ `create_label` - Create new label with color
+- ✅ `update_label` - Update label properties (name, color)
+- ✅ `delete_label` - Delete a label
+- ✅ `update_label_field` - Update specific label field
+- ✅ `get_label_usage` - Get usage analytics
+- ✅ `bulk_update_labels` - Bulk label operations
+- ✅ `get_cards_with_label` - Find cards by label
 
-### Phase 9-14: Advanced Features
-- [ ] Search functionality across boards
-- [ ] Batch operations for efficiency
+### Phase 9: Search and Analytics (Next)
+- [ ] `search_boards` - Search across all accessible boards
+- [ ] `search_cards` - Search for cards by content
+- [ ] `search_members` - Find members across organization
+- [ ] `get_board_analytics` - Get board activity analytics
+- [ ] `get_user_activity` - Get user activity statistics
+
+### Phase 10-14: Advanced Features
 - [ ] Member management and permissions
-- [ ] Organizations and teams
+- [ ] Organizations and teams management
+- [ ] Batch operations for efficiency
+- [ ] Advanced automation triggers
 - [ ] Webhooks for real-time updates (optional)
 - [ ] OAuth 2.0 multi-user support
 - [ ] Deployment guides and documentation

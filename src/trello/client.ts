@@ -286,6 +286,12 @@ export class TrelloClient {
     );
   }
 
+  async updateLabelField(id: string, field: string, value: any): Promise<any> {
+    return withHighPriorityRateLimit(() => 
+      trelloHttp.put(`/labels/${id}/${field}`, null, { params: { value } })
+    );
+  }
+
   // ===== CHECKLISTS =====
 
   async createChecklist(request: CreateChecklistRequest): Promise<TrelloChecklist> {
