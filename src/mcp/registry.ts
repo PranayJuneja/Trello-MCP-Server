@@ -85,6 +85,33 @@ import {
 // Card resources
 import { readCardResource } from './resources/card.js';
 
+// Checklist tools
+import {
+  getChecklistSchema,
+  addChecklistSchema,
+  updateChecklistSchema,
+  deleteChecklistSchema,
+  getChecklistsOnCardSchema,
+  addCheckItemSchema,
+  updateCheckItemSchema,
+  deleteCheckItemSchema,
+  getCheckItemsSchema,
+  getCheckItemSchema,
+  getChecklist,
+  addChecklist,
+  updateChecklist,
+  deleteChecklist,
+  getChecklistsOnCard,
+  addCheckItem,
+  updateCheckItem,
+  deleteCheckItem,
+  getCheckItems,
+  getCheckItem,
+} from './tools/checklists.js';
+
+// Checklist resources
+import { readChecklistResource } from './resources/checklist.js';
+
 export function registerAllToolsAndResources() {
   // ===== BOARD TOOLS =====
   
@@ -316,6 +343,78 @@ export function registerAllToolsAndResources() {
     getCardActions
   );
 
+  // ===== CHECKLIST TOOLS =====
+  
+  trelloMcpServer.registerTool(
+    'get_checklist',
+    'Get detailed information about a specific checklist',
+    getChecklistSchema,
+    getChecklist
+  );
+  
+  trelloMcpServer.registerTool(
+    'add_checklist',
+    'Add a new checklist to a card',
+    addChecklistSchema,
+    addChecklist
+  );
+  
+  trelloMcpServer.registerTool(
+    'update_checklist',
+    'Update an existing checklist\'s properties',
+    updateChecklistSchema,
+    updateChecklist
+  );
+  
+  trelloMcpServer.registerTool(
+    'delete_checklist',
+    'Delete a checklist from a card',
+    deleteChecklistSchema,
+    deleteChecklist
+  );
+  
+  trelloMcpServer.registerTool(
+    'get_checklists_on_card',
+    'Get all checklists on a specific card',
+    getChecklistsOnCardSchema,
+    getChecklistsOnCard
+  );
+  
+  trelloMcpServer.registerTool(
+    'add_checkitem',
+    'Add a new item to a checklist',
+    addCheckItemSchema,
+    addCheckItem
+  );
+  
+  trelloMcpServer.registerTool(
+    'update_checkitem',
+    'Update an existing checklist item',
+    updateCheckItemSchema,
+    updateCheckItem
+  );
+  
+  trelloMcpServer.registerTool(
+    'delete_checkitem',
+    'Delete an item from a checklist',
+    deleteCheckItemSchema,
+    deleteCheckItem
+  );
+  
+  trelloMcpServer.registerTool(
+    'get_checkitems',
+    'Get all items in a checklist with optional filtering',
+    getCheckItemsSchema,
+    getCheckItems
+  );
+  
+  trelloMcpServer.registerTool(
+    'get_checkitem',
+    'Get detailed information about a specific checklist item',
+    getCheckItemSchema,
+    getCheckItem
+  );
+
   // ===== BOARD RESOURCES =====
   
   trelloMcpServer.registerResource(
@@ -344,5 +443,15 @@ export function registerAllToolsAndResources() {
     'Get comprehensive information about a Trello card including description, members, labels, checklists, attachments, and comments',
     'application/json',
     readCardResource
+  );
+
+  // ===== CHECKLIST RESOURCES =====
+  
+  trelloMcpServer.registerResource(
+    'trello:checklist/{id}',
+    'Checklist Details',
+    'Get comprehensive information about a Trello checklist including all check items, progress tracking, and context',
+    'application/json',
+    readChecklistResource
   );
 }

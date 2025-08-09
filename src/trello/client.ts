@@ -306,6 +306,24 @@ export class TrelloClient {
     );
   }
 
+  async updateChecklistField(id: string, field: string, value: any): Promise<any> {
+    return withHighPriorityRateLimit(() => 
+      trelloHttp.put(`/checklists/${id}/${field}`, null, { params: { value } })
+    );
+  }
+
+  async getChecklistBoard(id: string): Promise<TrelloBoard> {
+    return withRateLimit(() => 
+      trelloHttp.get<TrelloBoard>(`/checklists/${id}/board`)
+    );
+  }
+
+  async getChecklistCard(id: string): Promise<TrelloCard[]> {
+    return withRateLimit(() => 
+      trelloHttp.get<TrelloCard[]>(`/checklists/${id}/cards`)
+    );
+  }
+
   async addCheckItem(checklistId: string, request: CreateCheckItemRequest): Promise<TrelloCheckItem> {
     return withHighPriorityRateLimit(() => 
       trelloHttp.post<TrelloCheckItem>(`/checklists/${checklistId}/checkItems`, null, { 

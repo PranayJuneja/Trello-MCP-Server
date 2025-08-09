@@ -17,6 +17,10 @@ A Model Context Protocol (MCP) server that provides integration with Trello boar
 - ✅ Comment management
 - ✅ Label and member assignment
 - ✅ Attachment management
+- ✅ Checklist management tools
+- ✅ Checklist resource provider
+- ✅ Check item operations
+- ✅ Progress tracking
 
 ### Board Tools
 - `list_boards` - List all accessible boards
@@ -56,10 +60,23 @@ A Model Context Protocol (MCP) server that provides integration with Trello boar
 - `remove_attachment` - Remove attachment from card
 - `get_card_actions` - Get card activity history
 
+### Checklist Tools
+- `get_checklist` - Get detailed checklist information
+- `add_checklist` - Add new checklist to a card
+- `update_checklist` - Update checklist properties
+- `delete_checklist` - Delete a checklist
+- `get_checklists_on_card` - Get all checklists on a card
+- `add_checkitem` - Add new item to checklist
+- `update_checkitem` - Update checklist item (mark complete/incomplete, rename, etc.)
+- `delete_checkitem` - Delete item from checklist
+- `get_checkitems` - Get all items in checklist with filtering
+- `get_checkitem` - Get detailed check item information
+
 ### Resources
 - `trello:board/{id}` - Comprehensive board information with human-readable summary
 - `trello:list/{id}` - Detailed list information with all cards and activity
 - `trello:card/{id}` - Rich card details with description, members, labels, checklists, attachments, and comments
+- `trello:checklist/{id}` - Detailed checklist with progress tracking, item status, and context
 
 ## Quick Start
 
@@ -209,18 +226,30 @@ src/
 - ✅ `remove_attachment` - Remove attachment
 - ✅ `get_card_actions` - Get card activity history
 
-### Phase 7: Checklists and Advanced Card Features (Next)
-- [ ] `add_checklist` - Add checklist to card
-- [ ] `add_checkitem` - Add item to checklist
-- [ ] `update_checkitem` - Update checklist item
-- [ ] `delete_checkitem` - Remove checklist item
-- [ ] `delete_checklist` - Remove entire checklist
+### Phase 7: Checklists and Advanced Card Features ✅ Completed
+- ✅ `get_checklist` - Get checklist details
+- ✅ `add_checklist` - Add checklist to card
+- ✅ `update_checklist` - Update checklist properties
+- ✅ `delete_checklist` - Delete entire checklist
+- ✅ `get_checklists_on_card` - Get all checklists on card
+- ✅ `add_checkitem` - Add item to checklist
+- ✅ `update_checkitem` - Update checklist item
+- ✅ `delete_checkitem` - Delete checklist item
+- ✅ `get_checkitems` - Get items with filtering
+- ✅ `get_checkitem` - Get check item details
 
-### Phase 8-14: Advanced Features
-- [ ] Labels management (create, update, delete labels)
-- [ ] Search functionality
-- [ ] Batch operations
-- [ ] Webhooks (optional)
+### Phase 8: Labels Management (Next)
+- [ ] `get_labels` - List labels on a board
+- [ ] `create_label` - Create new label
+- [ ] `update_label` - Update label properties
+- [ ] `delete_label` - Delete a label
+
+### Phase 9-14: Advanced Features
+- [ ] Search functionality across boards
+- [ ] Batch operations for efficiency
+- [ ] Member management and permissions
+- [ ] Organizations and teams
+- [ ] Webhooks for real-time updates (optional)
 - [ ] OAuth 2.0 multi-user support
 - [ ] Deployment guides and documentation
 
