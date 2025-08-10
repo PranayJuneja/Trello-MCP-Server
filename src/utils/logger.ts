@@ -1,18 +1,17 @@
 import pino from 'pino';
 import { config } from '../config/env.js';
+import crypto from 'crypto';
 
-// Create logger with pretty printing for development
-const logger = pino({
-  level: config.LOG_LEVEL,
-  transport: {
-    target: 'pino-pretty',
-    options: {
-      colorize: true,
-      ignore: 'pid,hostname',
-      translateTime: 'yyyy-mm-dd HH:MM:ss',
-    },
+// IMPORTANT: In MCP stdio mode, stdout must be reserved for protocol messages.
+// To avoid corrupting the stream, we always log to stderr.
+const logger = pino(
+  {
+    level: config.LOG_LEVEL,
+    base: undefined,
+    timestamp: pino.stdTimeFunctions.isoTime,
   },
-});
+  pino.destination(2) // fd 2 = stderr
+);
 
 export { logger };
 

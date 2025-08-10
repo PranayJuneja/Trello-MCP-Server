@@ -4,6 +4,7 @@ import { config } from './config/env.js';
 import { logger, requestLoggerMiddleware } from './utils/logger.js';
 import { trelloMcpServer } from './mcp/server.js';
 import { createSseHandler, createSseOptionsHandler } from './mcp/transport/httpSse.js';
+import { createWebhookHandler, createWebhookOptionsHandler } from './mcp/transport/webhookHandler.js';
 import { registerAllToolsAndResources } from './mcp/registry.js';
 
 const app: express.Application = express();
@@ -33,6 +34,11 @@ app.get('/health', (req: Request, res: Response) => {
 app.options('/mcp/sse', createSseOptionsHandler());
 app.get('/mcp/sse', createSseHandler(trelloMcpServer.getServer()));
 
+// Webhook endpoint for receiving Trello webhooks
+app.options('/webhooks/trello', createWebhookOptionsHandler());
+app.post('/webhooks/trello', createWebhookHandler());
+app.head('/webhooks/trello', createWebhookHandler());
+
 // Basic info endpoint
 app.get('/', (req: Request, res: Response) => {
   res.json({
@@ -42,6 +48,7 @@ app.get('/', (req: Request, res: Response) => {
     endpoints: {
       health: '/health',
       mcp: '/mcp/sse',
+      webhooks: '/webhooks/trello',
     },
     auth: {
       type: 'Bearer token',

@@ -11,6 +11,7 @@ import {
   TrelloAttachment,
   TrelloAction,
   TrelloWebhook,
+  TrelloOrganization,
   CreateBoardRequest,
   UpdateBoardRequest,
   CreateListRequest,
@@ -389,6 +390,48 @@ export class TrelloClient {
     );
   }
 
+  // ===== NOTIFICATIONS =====
+
+  async listNotifications(memberId: string = 'me', options: any = {}): Promise<any[]> {
+    return withRateLimit(() =>
+      trelloHttp.get<any[]>(`/members/${memberId}/notifications`, { params: options })
+    );
+  }
+
+  async getNotification(id: string): Promise<any> {
+    return withRateLimit(() =>
+      trelloHttp.get<any>(`/notifications/${id}`)
+    );
+  }
+
+  async markNotificationRead(id: string, unread: boolean = false): Promise<any> {
+    return withHighPriorityRateLimit(() =>
+      trelloHttp.put<any>(`/notifications/${id}/unread`, null, { params: { value: unread ? 'true' : 'false' } })
+    );
+  }
+
+  async markAllNotificationsRead(read: boolean = true, ids?: string[]): Promise<any> {
+    const params: any = { read: read ? 'true' : 'false' };
+    if (ids && ids.length > 0) params.ids = ids.join(',');
+    return withHighPriorityRateLimit(() =>
+      trelloHttp.post<any>(`/notifications/all/read`, null, { params })
+    );
+  }
+
+  // ===== ACTIONS (RECENT ACTIVITY) =====
+
+  async listMemberActions(memberId: string = 'me', options: any = {}): Promise<any[]> {
+    return withRateLimit(() =>
+      trelloHttp.get<any[]>(`/members/${memberId}/actions`, { params: options })
+    );
+  }
+
+  async listBoardActions(boardId: string, options: any = {}): Promise<any[]> {
+    return withRateLimit(() =>
+      trelloHttp.get<any[]>(`/boards/${boardId}/actions`, { params: options })
+    );
+  }
+
   // ===== SEARCH =====
 
   async search(request: SearchRequest): Promise<SearchResponse> {
@@ -405,23 +448,123 @@ export class TrelloClient {
     );
   }
 
-  // ===== WEBHOOKS =====
+  // ===== BULK LIST OPERATIONS =====
 
-  async createWebhook(
-    callbackURL: string,
-    idModel: string,
-    description?: string
-  ): Promise<TrelloWebhook> {
-    return withHighPriorityRateLimit(() => 
-      trelloHttp.post<TrelloWebhook>('/webhooks', null, { 
-        params: { callbackURL, idModel, description } 
+  async archiveAllCardsInList(listId: string): Promise<any> {
+    return withRateLimit(() =>
+      trelloHttp.post<any>(`/lists/${listId}/archiveAllCards`)
+    );
+  }
+
+  async moveAllCardsInList(sourceListId: string, targetListId: string, targetBoardId?: string): Promise<any> {
+    const params: any = { idList: targetListId };
+    if (targetBoardId) {
+      params.idBoard = targetBoardId;
+    }
+    
+    return withRateLimit(() =>
+      trelloHttp.post<any>(`/lists/${sourceListId}/moveAllCards`, null, { params })
+    );
+  }
+
+  // ===== ORGANIZATIONS =====
+
+  async getMemberOrganizations(memberId: string = 'me', options: any = {}): Promise<TrelloOrganization[]> {
+    return withRateLimit(() =>
+      trelloHttp.get<TrelloOrganization[]>(`/members/${memberId}/organizations`, { params: options })
+    );
+  }
+
+  async getOrganization(id: string, options: any = {}): Promise<TrelloOrganization> {
+    return withRateLimit(() =>
+      trelloHttp.get<TrelloOrganization>(`/organizations/${id}`, { params: options })
+    );
+  }
+
+  async createOrganization(data: any): Promise<TrelloOrganization> {
+    return withRateLimit(() =>
+      trelloHttp.post<TrelloOrganization>('/organizations', null, { params: data })
+    );
+  }
+
+  async updateOrganization(id: string, data: any): Promise<TrelloOrganization> {
+    return withRateLimit(() =>
+      trelloHttp.put<TrelloOrganization>(`/organizations/${id}`, null, { params: data })
+    );
+  }
+
+  async deleteOrganization(id: string): Promise<void> {
+    return withRateLimit(() =>
+      trelloHttp.delete(`/organizations/${id}`)
+    );
+  }
+
+  async getOrganizationMembers(id: string, options: any = {}): Promise<TrelloMember[]> {
+    return withRateLimit(() =>
+      trelloHttp.get<TrelloMember[]>(`/organizations/${id}/members`, { params: options })
+    );
+  }
+
+  async getOrganizationBoards(id: string, options: any = {}): Promise<TrelloBoard[]> {
+    return withRateLimit(() =>
+      trelloHttp.get<TrelloBoard[]>(`/organizations/${id}/boards`, { params: options })
+    );
+  }
+
+  async inviteMemberToOrganization(id: string, data: any): Promise<TrelloMember> {
+    return withRateLimit(() =>
+      trelloHttp.put<TrelloMember>(`/organizations/${id}/members`, null, { params: data })
+    );
+  }
+
+  async updateOrganizationMember(id: string, memberId: string, data: any): Promise<TrelloMember> {
+    return withRateLimit(() =>
+      trelloHttp.put<TrelloMember>(`/organizations/${id}/members/${memberId}`, null, { params: data })
+    );
+  }
+
+  async removeOrganizationMember(id: string, memberId: string): Promise<void> {
+    return withRateLimit(() =>
+      trelloHttp.delete(`/organizations/${id}/members/${memberId}`)
+    );
+  }
+
+  async deactivateOrganizationMember(id: string, memberId: string, value: boolean): Promise<TrelloMember> {
+    return withRateLimit(() =>
+      trelloHttp.put<TrelloMember>(`/organizations/${id}/members/${memberId}/deactivated`, null, {
+        params: { value: value.toString() }
       })
     );
   }
 
-  async listWebhooks(): Promise<TrelloWebhook[]> {
+  async getOrganizationMemberships(id: string, options: any = {}): Promise<any[]> {
+    return withRateLimit(() =>
+      trelloHttp.get<any[]>(`/organizations/${id}/memberships`, { params: options })
+    );
+  }
+
+  async getOrganizationMembership(id: string, membershipId: string, options: any = {}): Promise<any> {
+    return withRateLimit(() =>
+      trelloHttp.get<any>(`/organizations/${id}/memberships/${membershipId}`, { params: options })
+    );
+  }
+
+  // ===== WEBHOOKS =====
+
+  async createWebhook(data: {
+    callbackURL: string;
+    idModel: string;
+    description?: string;
+    active?: boolean;
+  }): Promise<TrelloWebhook> {
+    return withHighPriorityRateLimit(() => 
+      trelloHttp.post<TrelloWebhook>('/webhooks', null, { params: data })
+    );
+  }
+
+  async listWebhooks(token: string = 'current'): Promise<TrelloWebhook[]> {
     return withRateLimit(() => 
-      trelloHttp.get<TrelloWebhook[]>('/tokens/[token]/webhooks')
+      trelloHttp.get<TrelloWebhook[]>(`/tokens/${token}/webhooks`)
     );
   }
 
@@ -431,9 +574,51 @@ export class TrelloClient {
     );
   }
 
+  async updateWebhook(id: string, data: {
+    description?: string;
+    callbackURL?: string;
+    active?: boolean;
+  }): Promise<TrelloWebhook> {
+    return withRateLimit(() =>
+      trelloHttp.put<TrelloWebhook>(`/webhooks/${id}`, null, { params: data })
+    );
+  }
+
   async deleteWebhook(id: string): Promise<void> {
     return withHighPriorityRateLimit(() => 
       trelloHttp.delete(`/webhooks/${id}`)
+    );
+  }
+
+  async createTokenWebhook(token: string = 'current', data: {
+    callbackURL: string;
+    idModel: string;
+    description?: string;
+  }): Promise<TrelloWebhook> {
+    return withHighPriorityRateLimit(() =>
+      trelloHttp.post<TrelloWebhook>(`/tokens/${token}/webhooks`, null, { params: data })
+    );
+  }
+
+  async updateTokenWebhook(token: string = 'current', webhookId: string, data: {
+    description?: string;
+    callbackURL?: string;
+    active?: boolean;
+  }): Promise<TrelloWebhook> {
+    return withRateLimit(() =>
+      trelloHttp.put<TrelloWebhook>(`/tokens/${token}/webhooks/${webhookId}`, null, { params: data })
+    );
+  }
+
+  async deleteTokenWebhook(token: string = 'current', webhookId: string): Promise<void> {
+    return withHighPriorityRateLimit(() =>
+      trelloHttp.delete(`/tokens/${token}/webhooks/${webhookId}`)
+    );
+  }
+
+  async getWebhookField(id: string, field: 'active' | 'callbackURL' | 'description' | 'idModel'): Promise<any> {
+    return withRateLimit(() =>
+      trelloHttp.get<any>(`/webhooks/${id}/${field}`)
     );
   }
 }

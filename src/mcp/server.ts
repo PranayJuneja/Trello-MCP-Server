@@ -1,4 +1,7 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { z } from 'zod';
+import crypto from 'crypto';
 import {
   CallToolRequestSchema,
   ErrorCode,
@@ -8,6 +11,7 @@ import {
   ReadResourceRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 import { logger } from '../utils/logger.js';
+import { zodToJsonSchema } from 'zod-to-json-schema';
 
 export interface McpContext {
   requestId: string;
@@ -17,6 +21,7 @@ export interface McpContext {
 export class TrelloMcpServer {
   private server: Server;
   private mcpLogger = logger.child({ component: 'McpServer' });
+  private mcpCompat?: McpServer;
 
   constructor() {
     this.server = new Server(
@@ -26,8 +31,12 @@ export class TrelloMcpServer {
       },
       {
         capabilities: {
-          tools: {},
-          resources: {},
+          tools: {
+            listChanged: true,
+          },
+          resources: {
+            listChanged: true,
+          },
         },
       }
     );
@@ -129,14 +138,74 @@ export class TrelloMcpServer {
   ) {
     this.tools.set(name, { name, description, inputSchema, handler });
     this.mcpLogger.info({ tool: name }, 'Tool registered');
+
+    // Also register with McpServer (SDK helper) if attached for max compatibility
+    if (this.mcpCompat) {
+      const title = name
+        .replace(/_/g, ' ')
+        .replace(/\b\w/g, (c) => c.toUpperCase());
+      const isZodObject = inputSchema && typeof inputSchema === 'object' && 'shape' in inputSchema;
+      const shape = isZodObject ? (inputSchema as z.ZodObject<any>).shape : ({} as Record<string, any>);
+      this.mcpCompat.registerTool(
+        name,
+        {
+          title,
+          description,
+          inputSchema: shape,
+        },
+        async (args: any) => {
+          try {
+            const result = await handler(args, {
+              requestId: crypto.randomUUID(),
+              logger: this.mcpLogger,
+            });
+            return {
+              content: [
+                {
+                  type: 'text' as const,
+                  text: JSON.stringify(result, null, 2),
+                },
+              ],
+            };
+          } catch (error) {
+            return {
+              content: [
+                {
+                  type: 'text' as const,
+                  text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+                },
+              ],
+              isError: true,
+            };
+          }
+        }
+      );
+    }
   }
 
   private getRegisteredTools() {
-    return Array.from(this.tools.values()).map(tool => ({
-      name: tool.name,
-      description: tool.description,
-      inputSchema: tool.inputSchema,
-    }));
+    return Array.from(this.tools.values()).map(tool => {
+      let inputSchema: any;
+      try {
+        // Inline refs to maximize client compatibility
+        inputSchema = zodToJsonSchema(tool.inputSchema, {
+          name: tool.name,
+          $refStrategy: 'none',
+        } as any);
+      } catch (error) {
+        this.mcpLogger.warn({ tool: tool.name, error: (error as Error).message }, 'Failed to convert Zod schema; using permissive schema');
+        inputSchema = {
+          type: 'object',
+          additionalProperties: true,
+        };
+      }
+      return {
+        name: tool.name,
+        description: tool.description,
+        // MCP protocol expects input_schema (snake_case)
+        input_schema: inputSchema,
+      } as any;
+    });
   }
 
   private async callTool(name: string, args: any, context: McpContext) {
@@ -213,6 +282,10 @@ export class TrelloMcpServer {
 
   getServer(): Server {
     return this.server;
+  }
+
+  attachMcpCompat(mcp: McpServer) {
+    this.mcpCompat = mcp;
   }
 }
 

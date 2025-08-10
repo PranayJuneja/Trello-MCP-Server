@@ -3,7 +3,7 @@
 export interface TrelloBoard {
   id: string;
   name: string;
-  desc: string;
+  desc?: string;
   closed: boolean;
   url: string;
   shortUrl: string;
@@ -166,18 +166,6 @@ export interface TrelloAction {
   member?: TrelloMember;
 }
 
-export interface TrelloOrganization {
-  id: string;
-  name: string;
-  displayName: string;
-  desc: string;
-  url: string;
-  website?: string;
-  logoHash?: string;
-  products: number[];
-  powerUps: number[];
-}
-
 export interface TrelloWebhook {
   id: string;
   description: string;
@@ -186,6 +174,75 @@ export interface TrelloWebhook {
   active: boolean;
   consecutiveFailures: number;
   firstConsecutiveFailDate?: string;
+}
+
+export interface TrelloOrganization {
+  id: string;
+  name: string;
+  displayName: string;
+  desc?: string;
+  descData?: any;
+  closed: boolean;
+  idMemberCreator?: string;
+  url: string;
+  website?: string;
+  logoHash?: string;
+  logoUrl?: string;
+  products: number[];
+  powerUps: number[];
+  premiumFeatures: string[];
+  billableMemberCount?: number;
+  activeBillableMemberCount?: number;
+  memberships?: TrelloMembership[];
+  members?: TrelloMember[];
+  boards?: TrelloBoard[];
+  actions?: TrelloAction[];
+  prefs?: TrelloOrganizationPrefs;
+}
+
+export interface TrelloOrganizationPrefs {
+  permissionLevel: 'private' | 'public';
+  hideVotes: boolean;
+  voting: 'disabled' | 'members' | 'observers' | 'org' | 'public';
+  comments: 'disabled' | 'members' | 'observers' | 'org' | 'public';
+  invitations: 'admins' | 'members';
+  selfJoin: boolean;
+  cardCovers: boolean;
+  isTemplate: boolean;
+  cardAging: 'pirate' | 'regular';
+  calendarFeedEnabled: boolean;
+  background: string;
+  backgroundImage?: string;
+  backgroundImageScaled?: any[];
+  backgroundTile: boolean;
+  backgroundBrightness: 'dark' | 'light';
+  backgroundColor?: string;
+  backgroundBottomColor?: string;
+  backgroundTopColor?: string;
+  canBePublic: boolean;
+  canBeEnterprise: boolean;
+  canBeOrg: boolean;
+  canBePrivate: boolean;
+  canInvite: boolean;
+  boardVisibilityRestrict?: {
+    private?: 'admin' | 'none' | 'org';
+    org?: 'admin' | 'none' | 'org';
+    public?: 'admin' | 'none' | 'org';
+  };
+  orgInviteRestrict?: 'any' | 'domain' | 'none';
+  associatedDomain?: string;
+  googleAppsVersion?: number;
+  externalMembersDisabled?: boolean;
+  sharedSourceUrl?: string;
+}
+
+export interface TrelloMembership {
+  id: string;
+  idMember: string;
+  memberType: 'admin' | 'normal';
+  unconfirmed: boolean;
+  deactivated: boolean;
+  member?: TrelloMember;
 }
 
 // API request/response types

@@ -10,31 +10,24 @@ export function createSseHandler(mcpServer: Server) {
   return async (req: Request, res: Response) => {
     const requestLogger = req.logger || logger;
     
-    // Verify API key
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      requestLogger.warn('Missing or invalid authorization header');
-      return res.status(401).json({ error: 'Missing or invalid authorization header' });
-    }
-
-    const token = authHeader.substring(7);
-    if (token !== config.MCP_API_KEY) {
-      requestLogger.warn('Invalid API key');
-      return res.status(401).json({ error: 'Invalid API key' });
+    // Verify API key if configured; allow open access when MCP_API_KEY is empty
+    if (config.MCP_API_KEY && config.MCP_API_KEY.length > 0) {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        requestLogger.warn('Missing or invalid authorization header');
+        return res.status(401).json({ error: 'Missing or invalid authorization header' });
+      }
+      const token = authHeader.substring(7);
+      if (token !== config.MCP_API_KEY) {
+        requestLogger.warn('Invalid API key');
+        return res.status(401).json({ error: 'Invalid API key' });
+      }
+    } else {
+      requestLogger.warn('MCP_API_KEY not set; allowing unauthenticated SSE connection');
     }
 
     try {
       requestLogger.info('Starting SSE MCP connection');
-
-      // Set up SSE headers
-      res.writeHead(200, {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      });
 
       // Create SSE transport
       const transport = new SSEServerTransport('/message', res);

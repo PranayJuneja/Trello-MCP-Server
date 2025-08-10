@@ -8,12 +8,14 @@ const envSchema = z.object({
   // Server configuration
   PORT: z.string().default('8787').transform(Number),
   BASE_URL: z.string().default('http://localhost:8787'),
-  MCP_API_KEY: z.string().min(1, 'MCP_API_KEY is required'),
+  // Make MCP_API_KEY optional to allow stdio usage without auth
+  MCP_API_KEY: z.string().default(''),
   
   // Trello configuration (PAT mode for v1)
   TRELLO_API_BASE: z.string().default('https://api.trello.com/1'),
-  TRELLO_KEY: z.string().min(1, 'TRELLO_KEY is required'),
-  TRELLO_TOKEN: z.string().min(1, 'TRELLO_TOKEN is required'),
+  // Make Trello credentials optional for startup; API calls will fail if unset
+  TRELLO_KEY: z.string().default(''),
+  TRELLO_TOKEN: z.string().default(''),
   
   // Optional OAuth configuration (for v2)
   TRELLO_CLIENT_ID: z.string().optional(),
