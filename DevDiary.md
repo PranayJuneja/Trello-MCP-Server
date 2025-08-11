@@ -6,7 +6,7 @@ Hello there! If you're reading this, you're probably interested in how AI assist
 
 Imagine an AI assistant is a brilliant, multilingual chef. This chef can cook anything, but they need ingredients and tools. Now, imagine every kitchen tool (Trello, GitHub, Slack) speaks a different, obscure language. The chef would spend all their time learning languages instead of cooking.
 
-**MCP (Model Context Protocol)** solves this. It's a universal language—a standard set of instructions—that the AI (our chef) can use. An **MCP Server** is the specialized kitchen assistant who understands this universal language *and* knows how to operate a specific tool, like the Trello espresso machine.
+**MCP (Model Context Protocol)** solves this. It's a standardized protocol (currently used by Claude and compatible clients) that provides a common set of instructions for AI assistants to interact with external tools. Think of it as JSON-RPC 2.0 with conventions for schemas, prompts, and tool definitions. An **MCP Server** is the specialized kitchen assistant who understands this protocol *and* knows how to operate a specific tool, like the Trello espresso machine.
 
 - **The AI says (in MCP):** "Hey, create a card named 'Buy milk'."
 - **The MCP Server hears this, translates it, and tells Trello:** "Use your API to create a new card with the title 'Buy milk' in the 'Groceries' list."
@@ -17,7 +17,7 @@ Our Trello MCP server is that specialized assistant, bridging the gap between th
 
 The AI and the MCP server need a way to communicate. This communication channel is called a "transport." We built our server to support two main types:
 
-1.  **`stdio` (Standard Input/Output):** Think of this as a direct, private phone line. The AI and the server are running on the same computer and talk to each other through text streams (`stdin` for listening, `stdout` for talking). It's incredibly fast and secure, perfect for desktop applications like Cursor where the AI runs locally. **This is the transport that gave us the most trouble, and we'll dive deep into why.**
+1.  **`stdio` (Standard Input/Output):** Think of this as a direct, private phone line. The MCP client and server are running on the same computer and talk to each other through text streams (`stdin` for listening, `stdout` for talking). It's incredibly fast and secure, perfect when the MCP client and server run on the same machine (like in Cursor's setup), even if the AI model itself runs remotely. **This is the transport that gave us the most trouble, and we'll dive deep into why.**
 
 2.  **HTTP/SSE (Server-Sent Events):** This is more like a private web radio broadcast. The MCP server runs as a web server (like a website on `http://localhost:8787`), and the AI "tunes in" to a specific URL (`/mcp/sse`) to listen for messages. It's more flexible, allowing the AI and the server to be on different machines, but has slightly more overhead than `stdio`.
 
@@ -36,7 +36,7 @@ This led us to the root cause: **a silent crash on startup.** The server process
 
 **The Culprit:** Strict environment variable validation in `src/config/env.ts`. Our code had a rule: "You MUST provide a `TRELLO_KEY`, `TRELLO_TOKEN`, and `MCP_API_KEY` to run." When we ran the server via `stdio` in Cursor, we hadn't configured the `MCP_API_KEY` in `.cursor/mcp.json`. The server saw the missing key, threw an error, and died.
 
-**The Fix:** We relaxed the validation. An MCP server running in `stdio` mode for a local desktop client doesn't necessarily need an API key for authentication. We changed the configuration to make these keys optional at startup. The server could now start up fully and successfully register all its tools.
+**The Fix:** We relaxed the validation. An MCP server running in `stdio` mode for a local desktop client doesn't necessarily need an API key for authentication at startup. We changed the configuration to make these keys optional during initialization. The server could now start up fully and successfully register all its tools. We still require these keys at the time of making Trello API calls; we only made them optional at startup to allow the server to initialize in local dev mode.
 
 **Key Takeaway:** For `stdio`-based servers, avoid hard-failing on environment variables that are only needed for specific operations (like API calls or network authentication). Let the server start, and handle the missing keys when a tool that needs them is actually called.
 
@@ -55,14 +55,14 @@ Our server was outputting this instead:
 The client tried to parse `[dotenv...` as JSON, saw the `[` and then the `d`, and immediately failed because that's not valid JSON.
 
 **The Culprits:**
-1.  **`dotenv` Library:** By default, some versions of the `dotenv` library print a helpful debug message to the console when they load a `.env` file. Unfortunately, it prints this to `stdout`.
+1.  **`dotenv`-related Output:** In our specific setup, we were getting debug output like `[dotenv@17.2.1] injecting env...` when loading environment variables. This could come from various sources: debug mode being enabled, using a dotenv variant like `dotenv-flow` or `dotenv-expand`, or other tools in the chain that log to `stdout`. The core `dotenv` package doesn't print anything by default, but our particular configuration was producing this output.
 2.  **`pnpm` Banners:** The `pnpm` package manager, which we used to run our script, can also print its own output, like version numbers or warnings, to `stdout`.
 
 **The Fix (A Two-Pronged Attack):**
 1.  **Silence `pnpm`:** We updated the `args` in our `.cursor/mcp.json` to include the `--silent` flag. This tells `pnpm` to just run the script and not print any of its own chatter.
-2.  **Redirect `dotenv`'s Output:** We couldn't easily disable `dotenv`'s message, but we could control *where* it goes. In `src/config/env.ts`, we temporarily redirected `console.log` to `console.error` right before `dotenv.config()` was called, and then restored it immediately after. Since the MCP protocol only cares about `stdout`, anything printed to `stderr` is ignored by the client and is useful for debugging.
+2.  **Redirect Debug Output:** We couldn't easily disable the dotenv-related debug messages, but we could control *where* they go. In `src/config/env.ts`, we temporarily redirected `console.log` to `console.error` right before `dotenv.config()` was called, and then restored it immediately after. Since the MCP protocol only cares about `stdout`, anything printed to `stderr` is ignored by the client and is useful for debugging.
 
-**Key Takeaway:** **STDOUT IS SACRED.** In `stdio` mode, only MCP protocol messages can ever be printed to `stdout`. All logs, banners, warnings, and debug messages *must* be sent to `stderr`. Our logger was already correctly configured to use `stderr`, but we had to wrangle these third-party libraries to respect that rule.
+**Key Takeaway:** **STDOUT IS SACRED.** In `stdio` mode, only MCP protocol messages can ever be printed to `stdout`. All logs, banners, warnings, and debug messages *must* be sent to `stderr`. This isn't just Claude being strict—it's by design in JSON-RPC-over-stdio implementations, which follow structured framing requirements. Our logger was already correctly configured to use `stderr`, but we had to wrangle these third-party libraries to respect that rule.
 
 ### Problem #3: The Validation Nightmare - "keyValidator._parse is not a function"
 
@@ -78,7 +78,7 @@ Our first approach was to examine how we were registering tools with the compat 
 
 **Second Attempt - Zod Shapes for Compat:** We realized the compat server expected Zod shapes (the actual Zod schema objects), not JSON Schema. So we switched the compat registration to pass `inputSchema.shape` instead of the converted JSON Schema. This *still* failed with the same error.
 
-**The Real Culprit - Version Mismatch:** After comparing our working `mcp-server-trello` (which used Zod v3) with our failing `TrelloMCP` (which used Zod v4), we discovered the root cause. The MCP SDK was built expecting Zod v3's internal structure, but we were using Zod v4. When the SDK tried to call `_parse()` (a Zod v3 internal method) on our Zod v4 schema objects, it failed because that method didn't exist in the same way.
+**The Real Culprit - Version Mismatch:** After comparing our working `mcp-server-trello` (which used Zod v3) with our failing `TrelloMCP` (which used Zod v4), we discovered the root cause. The MCP SDK was built expecting Zod v3's internal structure, but we were using Zod v4. Zod v4 introduced breaking internal API changes, including the removal/renaming of the `_parse()` method that the SDK's validator was trying to call. When the SDK tried to call `_parse()` (a Zod v3 internal method) on our Zod v4 schema objects, it failed because that method didn't exist in the same way. This breakage happens even if the public Zod API looks the same—because the MCP SDK's validator calls Zod internals directly.
 
 **The Investigation Process:**
 1. **Grep for the Error:** We searched the entire codebase for "keyValidator" and "_parse" to understand where this was coming from
