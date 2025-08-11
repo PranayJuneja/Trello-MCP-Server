@@ -144,8 +144,14 @@ export class TrelloMcpServer {
       const title = name
         .replace(/_/g, ' ')
         .replace(/\b\w/g, (c) => c.toUpperCase());
-      const isZodObject = inputSchema && typeof inputSchema === 'object' && 'shape' in inputSchema;
-      const shape = isZodObject ? (inputSchema as z.ZodObject<any>).shape : ({} as Record<string, any>);
+
+      // Use Zod shape for compat server (NOT JSON Schema)
+      const isZodObject =
+        inputSchema && typeof inputSchema === 'object' && 'shape' in inputSchema;
+      const shape = isZodObject
+        ? (inputSchema as z.ZodObject<any>).shape
+        : ({} as Record<string, any>);
+
       this.mcpCompat.registerTool(
         name,
         {

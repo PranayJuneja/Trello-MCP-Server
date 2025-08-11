@@ -2,7 +2,21 @@ import { z } from 'zod';
 import dotenv from 'dotenv';
 
 // Load environment variables
-dotenv.config();
+// Some dotenv versions may print to stdout; redirect any such output to stderr during config
+const originalConsoleLog = console.log;
+try {
+  // Route any console.log used by dotenv to stderr to avoid corrupting MCP stdio
+  // eslint-disable-next-line no-console
+  (console as any).log = (...args: any[]) => {
+    // eslint-disable-next-line no-console
+    console.error(...args);
+  };
+  dotenv.config();
+} finally {
+  // Restore console.log
+  // eslint-disable-next-line no-console
+  (console as any).log = originalConsoleLog;
+}
 
 const envSchema = z.object({
   // Server configuration

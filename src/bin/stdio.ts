@@ -20,6 +20,7 @@ async function main(): Promise<void> {
     // Create stdio transport and connect ONLY the SDK McpServer to avoid double-start
     const transport = new StdioServerTransport();
     await mcp.connect(transport);
+    // Important: do not log to stdout in stdio mode. Logger is already configured to stderr.
     logger.info('MCP stdio server connected');
 
     // Graceful shutdown signals (best-effort in stdio mode)
