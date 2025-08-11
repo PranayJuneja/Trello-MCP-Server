@@ -271,12 +271,17 @@ Add to your MCP settings:
 {
   "mcpServers": {
     "trello": {
-      "transport": {
-        "type": "sse",
-        "url": "http://localhost:8787/mcp/sse",
-        "headers": {
-          "Authorization": "Bearer YOUR_API_KEY"
-        }
+      "command": "pnpm",
+      "args": [
+        "--silent",
+        "-C",
+        "<path to the project>",
+        "mcp:stdio"
+      ],
+      "env": {
+        "TRELLO_KEY": "<trello api key>",
+        "TRELLO_TOKEN": "<trello token>",
+        "LOG_LEVEL": "info"
       }
     }
   }
@@ -289,12 +294,17 @@ Add to your `claude_desktop_config.json`:
 {
   "mcpServers": {
     "trello": {
-      "transport": {
-        "type": "sse",
-        "url": "http://localhost:8787/mcp/sse",
-        "headers": {
-          "Authorization": "Bearer YOUR_API_KEY"
-        }
+      "command": "pnpm",
+      "args": [
+        "--silent",
+        "-C",
+        "<path to the project>",
+        "mcp:stdio"
+      ],
+      "env": {
+        "TRELLO_KEY": "<trello api key>",
+        "TRELLO_TOKEN": "<trello token>",
+        "LOG_LEVEL": "info"
       }
     }
   }
