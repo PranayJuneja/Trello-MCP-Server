@@ -7,7 +7,8 @@ import { logger } from '../../utils/logger.js';
 const transportLogger = logger.child({ component: 'SseTransport' });
 const MESSAGE_PATH = '/mcp/sse/message';
 
-let currentTransport: SSEServerTransport | null = null;
+const transportsBySession = new Map<string, SSEServerTransport>();
+let latestSessionId: string | null = null;
 
 function getAuthToken(req: Request): string | null {
   const header = req.headers.authorization;
@@ -17,10 +18,37 @@ function getAuthToken(req: Request): string | null {
   return header.substring(7);
 }
 
-function clearCurrentTransport(transport: SSEServerTransport) {
-  if (currentTransport === transport) {
-    currentTransport = null;
+function rememberTransport(transport: SSEServerTransport) {
+  const sessionId = transport.sessionId;
+  transportsBySession.set(sessionId, transport);
+  latestSessionId = sessionId;
+  transportLogger.info({ sessionId }, 'Registered MCP SSE transport');
+  return sessionId;
+}
+
+function clearTransport(transport: SSEServerTransport) {
+  const sessionId = transport.sessionId;
+  if (transportsBySession.delete(sessionId)) {
+    transportLogger.info({ sessionId }, 'Removed MCP SSE transport');
   }
+  if (latestSessionId === sessionId) {
+    latestSessionId = transportsBySession.size > 0 ? Array.from(transportsBySession.keys()).pop() ?? null : null;
+  }
+}
+
+function getSessionIdFromRequest(req: Request): string | null {
+  const queryId = typeof req.query.sessionId === 'string' ? req.query.sessionId : null;
+  if (queryId) {
+    return queryId;
+  }
+  const headerId = req.headers['mcp-session-id'];
+  if (Array.isArray(headerId)) {
+    return headerId[0] ?? null;
+  }
+  if (typeof headerId === 'string') {
+    return headerId;
+  }
+  return null;
 }
 
 export function createSseHandler(mcpServer: Server) {
@@ -45,27 +73,22 @@ export function createSseHandler(mcpServer: Server) {
     try {
       requestLogger.info('Starting SSE MCP connection');
 
-      if (currentTransport) {
-        transportLogger.warn('Closing existing MCP SSE transport before creating a new one');
-        currentTransport.close();
-        currentTransport = null;
-      }
-
       const transport = new SSEServerTransport(MESSAGE_PATH, res);
       await mcpServer.connect(transport);
-      currentTransport = transport;
+      const sessionId = rememberTransport(transport);
+      (req as Request & { mcpSessionId?: string }).mcpSessionId = sessionId;
 
-      requestLogger.info('MCP SSE connection established');
+      requestLogger.info({ sessionId }, 'MCP SSE connection established');
 
       req.on('close', () => {
-        requestLogger.info('MCP SSE connection closed');
-        clearCurrentTransport(transport);
+        requestLogger.info({ sessionId }, 'MCP SSE connection closed');
+        clearTransport(transport);
         transport.close();
       });
 
       req.on('error', (error) => {
-        requestLogger.error({ error: error.message }, 'MCP SSE connection error');
-        clearCurrentTransport(transport);
+        requestLogger.error({ sessionId, error: error.message }, 'MCP SSE connection error');
+        clearTransport(transport);
         transport.close();
       });
     } catch (error) {
@@ -102,8 +125,15 @@ export function registerSseMessageRoutes(router: Router) {
   });
 
   router.post(MESSAGE_PATH, async (req: Request, res: Response) => {
-    if (!currentTransport) {
-      transportLogger.warn('Received MCP message without active transport');
+    const requestedSessionId = getSessionIdFromRequest(req) ?? latestSessionId;
+    if (!requestedSessionId) {
+      transportLogger.warn('Received MCP message without a session identifier');
+      return res.status(400).json({ error: 'MCP session not initialized' });
+    }
+
+    const transport = transportsBySession.get(requestedSessionId);
+    if (!transport) {
+      transportLogger.warn({ sessionId: requestedSessionId }, 'No active transport for session');
       return res.status(400).json({ error: 'MCP transport not initialized' });
     }
 
@@ -121,10 +151,10 @@ export function registerSseMessageRoutes(router: Router) {
     }
 
     try {
-      await currentTransport.handlePostMessage(req, res);
+      await transport.handlePostMessage(req, res, req.body);
     } catch (error) {
       transportLogger.error(
-        { error: error instanceof Error ? error.message : String(error) },
+        { sessionId: requestedSessionId, error: error instanceof Error ? error.message : String(error) },
         'Failed to handle MCP message'
       );
 
