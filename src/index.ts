@@ -3,7 +3,7 @@ import cors from 'cors';
 import { config } from './config/env.js';
 import { logger, requestLoggerMiddleware } from './utils/logger.js';
 import { trelloMcpServer } from './mcp/server.js';
-import { createSseHandler, createSseOptionsHandler } from './mcp/transport/httpSse.js';
+import { createSseHandler, createSseOptionsHandler, registerSseMessageRoutes } from './mcp/transport/httpSse.js';
 import { createWebhookHandler, createWebhookOptionsHandler } from './mcp/transport/webhookHandler.js';
 import { registerAllToolsAndResources } from './mcp/registry.js';
 
@@ -16,6 +16,9 @@ registerAllToolsAndResources();
 app.use(cors());
 app.use(express.json());
 app.use(requestLoggerMiddleware);
+
+// Register message routes for MCP SSE transport
+registerSseMessageRoutes(app);
 
 // Health check endpoint
 app.get('/health', (req: Request, res: Response) => {
