@@ -9,7 +9,8 @@
     "build": "tsc -p tsconfig.json",
     "mcp:stdio": "tsx src/bin/stdio.ts",
     "lint": "eslint . --ext .ts",
-    "format": "prettier -w ."
+    "format": "prettier -w .",
+    "test": "jest"
   },
   "engines": {
     "node": ">=18.17"
@@ -21,12 +22,15 @@
   "devDependencies": {
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
+    "@types/jest": "^30.0.0",
     "@types/node": "^24.2.1",
     "eslint": "^9.33.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-unused-imports": "^4.1.4",
+    "jest": "^30.2.0",
     "prettier": "^3.6.2",
+    "ts-jest": "^29.4.4",
     "tsx": "^4.20.3",
     "typescript": "^5.9.2"
   },
