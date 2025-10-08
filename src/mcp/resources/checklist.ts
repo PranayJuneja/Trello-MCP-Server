@@ -1,7 +1,23 @@
+/**
+ * @fileoverview Defines the handler for the `trello:checklist` MCP resource.
+ * This module fetches a Trello checklist, enriches it with context about its parent
+ * board and card, and formats the data into a structured object and a detailed,
+ * human-readable summary for use in an MCP client.
+ */
 import { trelloClient } from '../../trello/client.js';
 import { McpContext } from '../server.js';
-import { TrelloChecklist } from '../../trello/types.js';
+import { TrelloChecklist, TrelloBoard, TrelloCard } from '../../trello/types.js';
 
+/**
+ * Reads and processes a Trello checklist resource from its URI.
+ * It fetches the checklist, its parent board and card for context, and then
+ * generates a structured object and a comprehensive, human-readable summary.
+ * @param {string} uri - The MCP resource URI for the checklist (e.g., `trello:checklist/{id}`).
+ * @param {McpContext} context - The MCP context, providing access to the logger.
+ * @returns {Promise<object>} A promise that resolves to an object containing the summary
+ * and the enriched checklist data.
+ * @throws {Error} If the URI format is invalid or the checklist ID is missing.
+ */
 export async function readChecklistResource(uri: string, context: McpContext) {
   // Extract checklist ID from URI: trello:checklist/{id}
   const match = uri.match(/^trello:checklist\/(.+)$/);
@@ -15,28 +31,25 @@ export async function readChecklistResource(uri: string, context: McpContext) {
   }
   context.logger.info({ checklistId }, 'Reading checklist resource');
   
-  // Get checklist with check items
+  // Get the core checklist data.
   const checklist = await trelloClient.getChecklist(checklistId);
   
-  // Get board and card context for additional information
-  let board = null;
-  let card = null;
+  // Initialize context variables.
+  let board: TrelloBoard | null = null;
+  let card: TrelloCard | null = null;
   
   try {
-    // Get the board the checklist is on
-    const boardData = await trelloClient.getChecklistBoard(checklistId);
-    board = boardData;
-    
-    // Get the card the checklist is on
+    // Fetch the board and card context for additional information.
+    board = await trelloClient.getChecklistBoard(checklistId);
     const cardData = await trelloClient.getChecklistCard(checklistId);
     if (cardData && cardData.length > 0) {
-      card = cardData[0]; // Take the first card (checklists can only be on one card)
+      card = cardData[0]; // A checklist belongs to a single card.
     }
   } catch (error) {
     context.logger.warn({ error: (error as Error).message }, 'Could not get context information for checklist');
   }
   
-  // Create a human-readable summary
+  // Create a human-readable summary.
   const summary = createChecklistSummary(checklist, board, card);
   
   return {
@@ -49,7 +62,16 @@ export async function readChecklistResource(uri: string, context: McpContext) {
   };
 }
 
-function createChecklistSummary(checklist: TrelloChecklist, board: any, card: any): string {
+/**
+ * Creates a detailed, human-readable summary of a Trello checklist in Markdown format.
+ * The summary includes context, progress statistics, a progress bar, and a detailed
+ * breakdown of complete and incomplete items.
+ * @param {TrelloChecklist} checklist - The core Trello checklist object.
+ * @param {TrelloBoard | null} board - The parent board object, for context.
+ * @param {TrelloCard | null} card - The parent card object, for context.
+ * @returns {string} A string containing the Markdown-formatted summary.
+ */
+function createChecklistSummary(checklist: TrelloChecklist, board: TrelloBoard | null, card: TrelloCard | null): string {
   const lines: string[] = [];
   
   lines.push(`# Checklist: ${checklist.name}`);
@@ -105,14 +127,11 @@ function createChecklistSummary(checklist: TrelloChecklist, board: any, card: an
   if (checklist.checkItems.length > 0) {
     lines.push(`## Check Items`);
     
-    // Sort items by position
     const sortedItems = checklist.checkItems.sort((a, b) => a.pos - b.pos);
-    
-    // Group by completion status
     const incompleteItemsList = sortedItems.filter(item => item.state === 'incomplete');
     const completedItemsList = sortedItems.filter(item => item.state === 'complete');
     
-    // Show incomplete items first
+    // Show incomplete items first for better visibility of pending tasks.
     if (incompleteItemsList.length > 0) {
       lines.push(`### Incomplete Items (${incompleteItemsList.length})`);
       incompleteItemsList.forEach((item, index) => {
@@ -123,7 +142,6 @@ function createChecklistSummary(checklist: TrelloChecklist, board: any, card: an
       lines.push('');
     }
     
-    // Show completed items
     if (completedItemsList.length > 0) {
       lines.push(`### Completed Items (${completedItemsList.length})`);
       completedItemsList.forEach((item, index) => {
@@ -143,12 +161,10 @@ function createChecklistSummary(checklist: TrelloChecklist, board: any, card: an
   if (checklist.checkItems.length > 0) {
     lines.push(`## Statistics`);
     
-    // Items with due dates
     const itemsWithDueDates = checklist.checkItems.filter(item => item.due);
     if (itemsWithDueDates.length > 0) {
       lines.push(`Items with due dates: ${itemsWithDueDates.length}`);
       
-      // Overdue items
       const now = new Date();
       const overdueItems = itemsWithDueDates.filter(item => 
         item.state === 'incomplete' && new Date(item.due!) < now
@@ -157,7 +173,6 @@ function createChecklistSummary(checklist: TrelloChecklist, board: any, card: an
         lines.push(`⚠️ Overdue items: ${overdueItems.length}`);
       }
       
-      // Upcoming items (due within 7 days)
       const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
       const upcomingItems = itemsWithDueDates.filter(item => 
         item.state === 'incomplete' && 
@@ -169,21 +184,19 @@ function createChecklistSummary(checklist: TrelloChecklist, board: any, card: an
       }
     }
     
-    // Assigned items
     const assignedItems = checklist.checkItems.filter(item => item.idMember);
     if (assignedItems.length > 0) {
       lines.push(`Assigned items: ${assignedItems.length}`);
     }
-    
     lines.push('');
   }
   
   // Recent activity insights
   if (checklist.checkItems.length > 0) {
-    // Find most recently updated items based on position (rough approximation)
+    // A simple heuristic for recent activity: show the last few completed items.
     const recentItems = checklist.checkItems
       .filter(item => item.state === 'complete')
-      .slice(-3); // Get last 3 completed items
+      .slice(-3);
     
     if (recentItems.length > 0) {
       lines.push(`## Recently Completed`);

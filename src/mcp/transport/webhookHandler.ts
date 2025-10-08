@@ -1,3 +1,9 @@
+/**
+ * @fileoverview This module provides handlers for receiving and processing Trello webhooks.
+ * It includes functionality for validating webhook signatures, handling Trello's initial
+ * verification request (HEAD), processing incoming event payloads (POST), and storing
+ * a history of events for debugging and analysis.
+ */
 import { Request, Response } from 'express';
 import crypto from 'crypto';
 import { logger } from '../../utils/logger.js';
@@ -5,11 +11,22 @@ import { config } from '../../config/env.js';
 
 const webhookLogger = logger.child({ component: 'WebhookHandler' });
 
-// In-memory storage for webhook events (in production, use a database)
-const webhookEventHistory: any[] = [];
+/**
+ * A simple in-memory array to store the history of received webhook events.
+ * Note: In a production environment, this should be replaced with a persistent
+ * data store like a database (e.g., Redis, PostgreSQL) to prevent data loss on restart
+ * and to manage memory usage effectively.
+ * @type {WebhookEvent[]}
+ */
+const webhookEventHistory: WebhookEvent[] = [];
 
+/**
+ * Defines the structure of a processed and stored webhook event.
+ */
 export interface WebhookEvent {
+  /** A unique identifier for the stored event. */
   id: string;
+  /** The 'action' object from the Trello webhook payload, containing event details. */
   action: {
     id: string;
     type: string;
@@ -17,19 +34,28 @@ export interface WebhookEvent {
     memberCreator: any;
     data: any;
   };
+  /** The 'model' object from the Trello webhook payload, representing the Trello entity that changed. */
   model: any;
+  /** The ISO timestamp when the event was received by the server. */
   receivedAt: string;
+  /** The source IP address of the request. */
   sourceIP?: string;
+  /** The User-Agent header from the request. */
   userAgent?: string;
 }
 
+/**
+ * Creates an Express request handler for processing incoming Trello webhooks.
+ * This handler validates requests, processes valid events, and manages event history.
+ * @returns {Function} An asynchronous Express request handler.
+ */
 export function createWebhookHandler() {
   return async (req: Request, res: Response) => {
     const requestId = req.requestId || crypto.randomUUID();
     const eventLogger = webhookLogger.child({ requestId });
 
     try {
-      // Log the incoming webhook
+      // Log the incoming webhook for traceability.
       eventLogger.info({
         method: req.method,
         url: req.url,
@@ -38,28 +64,28 @@ export function createWebhookHandler() {
         userAgent: req.get('User-Agent'),
       }, 'Webhook received');
 
-      // Handle HEAD requests (Trello verification)
+      // Handle HEAD requests, which Trello uses for initial webhook verification.
       if (req.method === 'HEAD') {
         eventLogger.info('Responding to Trello webhook verification');
         res.status(200).end();
         return;
       }
 
-      // Validate request method
+      // Ensure the request method is POST for actual event payloads.
       if (req.method !== 'POST') {
         eventLogger.warn({ method: req.method }, 'Invalid webhook method');
         res.status(405).json({ error: 'Method not allowed' });
         return;
       }
 
-      // Validate content type
+      // Validate that the content type is application/json.
       if (!req.is('application/json')) {
         eventLogger.warn({ contentType: req.get('Content-Type') }, 'Invalid content type');
         res.status(400).json({ error: 'Content-Type must be application/json' });
         return;
       }
 
-      // Validate webhook signature (HMAC of raw body with secret), if configured
+      // If a secret is configured, validate the HMAC signature of the webhook.
       if (config.WEBHOOK_VERIFICATION_SECRET) {
         const providedSignature = req.get('X-Trello-Webhook');
         if (!providedSignature) {
@@ -69,8 +95,7 @@ export function createWebhookHandler() {
         }
 
         try {
-          // Compute HMAC SHA1 of the raw body string using secret (Trello sends SHA1)
-          // Note: We depend on express.json() already parsed body; we re-stringify deterministically.
+          // Trello uses an HMAC-SHA1 signature.
           const raw = JSON.stringify(req.body);
           const hmac = crypto.createHmac('sha1', config.WEBHOOK_VERIFICATION_SECRET);
           hmac.update(raw, 'utf8');
@@ -88,7 +113,7 @@ export function createWebhookHandler() {
         }
       }
 
-      // Parse webhook payload
+      // Validate the payload structure.
       const payload = req.body;
       if (!payload || !payload.action) {
         eventLogger.warn({ payload }, 'Invalid webhook payload');
@@ -96,7 +121,7 @@ export function createWebhookHandler() {
         return;
       }
 
-      // Create webhook event
+      // Create a standardized event object for internal use.
       const webhookEvent: WebhookEvent = {
         id: `webhook_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         action: payload.action,
@@ -106,10 +131,8 @@ export function createWebhookHandler() {
         userAgent: req.get('User-Agent'),
       };
 
-      // Store event in history
+      // Store the event and manage history size.
       webhookEventHistory.push(webhookEvent);
-      
-      // Keep only last 1000 events to prevent memory issues
       if (webhookEventHistory.length > 1000) {
         webhookEventHistory.splice(0, webhookEventHistory.length - 1000);
       }
@@ -122,10 +145,10 @@ export function createWebhookHandler() {
         memberCreator: payload.action.memberCreator?.username,
       }, 'Webhook event processed');
 
-      // Process the webhook event
+      // Pass the event to the main processing logic.
       await processWebhookEvent(webhookEvent, eventLogger);
 
-      // Respond with success
+      // Respond to Trello with a success message.
       res.status(200).json({
         success: true,
         eventId: webhookEvent.id,
@@ -136,7 +159,7 @@ export function createWebhookHandler() {
     } catch (error: any) {
       eventLogger.error({ error }, 'Webhook processing failed');
       
-      // Respond with error but don't leak internal details
+      // Send a generic error response to avoid leaking internal details.
       res.status(500).json({
         success: false,
         error: 'Internal webhook processing error',
@@ -146,6 +169,10 @@ export function createWebhookHandler() {
   };
 }
 
+/**
+ * Creates an Express request handler for CORS preflight (OPTIONS) requests.
+ * @returns {Function} An Express request handler.
+ */
 export function createWebhookOptionsHandler() {
   return (req: Request, res: Response) => {
     res.set({
@@ -158,24 +185,26 @@ export function createWebhookOptionsHandler() {
   };
 }
 
+/**
+ * Contains the core business logic for processing a validated webhook event.
+ * This function is designed to be extended with application-specific logic.
+ * @param {WebhookEvent} event - The webhook event to process.
+ * @param {typeof webhookLogger} logger - A logger instance for this event.
+ * @throws {Error} Throws an error if processing fails.
+ */
 async function processWebhookEvent(event: WebhookEvent, logger: typeof webhookLogger) {
   try {
-    // Log event details
     logger.debug({
       eventId: event.id,
       actionType: event.action.type,
-      actionData: event.action.data,
-      model: event.model,
     }, 'Processing webhook event');
 
-    // Here you could:
-    // 1. Trigger automation rules based on the event
-    // 2. Update real-time sync status
-    // 3. Send notifications
-    // 4. Update analytics
-    // 5. Forward to external systems
+    // Placeholder for business logic:
+    // - Trigger automation rules based on the event
+    // - Update real-time sync status
+    // - Send notifications to other systems
+    // - Update analytics dashboards
 
-    // Example: Basic event categorization
     const eventCategory = categorizeWebhookEvent(event);
     logger.info({
       eventId: event.id,
@@ -183,7 +212,6 @@ async function processWebhookEvent(event: WebhookEvent, logger: typeof webhookLo
       actionType: event.action.type,
     }, 'Webhook event categorized');
 
-    // Example: Update real-time sync if enabled
     if (isRealTimeSyncEnabled(event.model?.id)) {
       await handleRealTimeSync(event, logger);
     }
@@ -198,34 +226,40 @@ async function processWebhookEvent(event: WebhookEvent, logger: typeof webhookLo
   }
 }
 
+/**
+ * Categorizes a webhook event based on its action type.
+ * @param {WebhookEvent} event - The webhook event.
+ * @returns {string} A string representing the event category.
+ */
 function categorizeWebhookEvent(event: WebhookEvent): string {
   const actionType = event.action.type;
   
-  if (actionType.includes('Card')) {
-    return 'card_operation';
-  } else if (actionType.includes('List')) {
-    return 'list_operation';
-  } else if (actionType.includes('Board')) {
-    return 'board_operation';
-  } else if (actionType.includes('Member')) {
-    return 'member_operation';
-  } else if (actionType.includes('Comment')) {
-    return 'comment_operation';
-  } else if (actionType.includes('Checklist')) {
-    return 'checklist_operation';
-  } else if (actionType.includes('Attachment')) {
-    return 'attachment_operation';
-  } else {
-    return 'other_operation';
-  }
+  if (actionType.includes('Card')) return 'card_operation';
+  if (actionType.includes('List')) return 'list_operation';
+  if (actionType.includes('Board')) return 'board_operation';
+  if (actionType.includes('Member')) return 'member_operation';
+  if (actionType.includes('Comment')) return 'comment_operation';
+  if (actionType.includes('Checklist')) return 'checklist_operation';
+  if (actionType.includes('Attachment')) return 'attachment_operation';
+  return 'other_operation';
 }
 
+/**
+ * Placeholder function to check if real-time sync is enabled for a given model.
+ * In a real application, this would check against a configuration database.
+ * @param {string} [modelId] - The ID of the Trello model (e.g., board ID).
+ * @returns {boolean} Always returns false in this placeholder implementation.
+ */
 function isRealTimeSyncEnabled(modelId?: string): boolean {
-  // This would check against stored real-time sync configuration
-  // For now, return false as a placeholder
+  // NOTE: This is a placeholder. A real implementation would query a config source.
   return false;
 }
 
+/**
+ * Placeholder function for handling real-time synchronization logic.
+ * @param {WebhookEvent} event - The event that triggered the sync.
+ * @param {typeof webhookLogger} logger - A logger instance.
+ */
 async function handleRealTimeSync(event: WebhookEvent, logger: typeof webhookLogger) {
   try {
     logger.info({
@@ -234,21 +268,12 @@ async function handleRealTimeSync(event: WebhookEvent, logger: typeof webhookLog
       actionType: event.action.type,
     }, 'Handling real-time sync');
 
-    // Here you would implement actual sync logic:
-    // 1. Update local cache/database
-    // 2. Propagate changes to subscribed clients
-    // 3. Handle conflict resolution
-    // 4. Update sync status
+    // Placeholder for actual sync logic:
+    // - Update local cache/database
+    // - Propagate changes to subscribed clients via SSE or WebSockets
+    // - Handle potential conflicts
 
-    // Placeholder implementation
-    const syncResult = {
-      synced: true,
-      modelId: event.model?.id,
-      actionType: event.action.type,
-      timestamp: new Date().toISOString(),
-    };
-
-    logger.debug({ syncResult }, 'Real-time sync completed');
+    logger.debug({ eventId: event.id }, 'Real-time sync completed (placeholder)');
 
   } catch (error: any) {
     logger.error({
@@ -260,14 +285,23 @@ async function handleRealTimeSync(event: WebhookEvent, logger: typeof webhookLog
   }
 }
 
-// Export function to get webhook event history
+/**
+ * Retrieves the recent history of webhook events.
+ * @param {number} [limit=100] - The maximum number of events to return.
+ * @returns {WebhookEvent[]} An array of webhook events, sorted from most to least recent.
+ */
 export function getWebhookEventHistory(limit = 100): WebhookEvent[] {
   return webhookEventHistory
     .slice(-limit)
     .sort((a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime());
 }
 
-// Export function to get webhook events by model ID
+/**
+ * Retrieves webhook events related to a specific Trello model (e.g., a board or card).
+ * @param {string} modelId - The ID of the Trello model to filter by.
+ * @param {number} [limit=100] - The maximum number of events to return.
+ * @returns {WebhookEvent[]} An array of matching webhook events, sorted by time.
+ */
 export function getWebhookEventsByModel(modelId: string, limit = 100): WebhookEvent[] {
   return webhookEventHistory
     .filter(event => 
@@ -279,7 +313,12 @@ export function getWebhookEventsByModel(modelId: string, limit = 100): WebhookEv
     .sort((a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime());
 }
 
-// Export function to get webhook events by action type
+/**
+ * Retrieves webhook events of a specific action type.
+ * @param {string} actionType - The action type to filter by (e.g., 'updateCard').
+ * @param {number} [limit=100] - The maximum number of events to return.
+ * @returns {WebhookEvent[]} An array of matching webhook events, sorted by time.
+ */
 export function getWebhookEventsByAction(actionType: string, limit = 100): WebhookEvent[] {
   return webhookEventHistory
     .filter(event => event.action.type === actionType)

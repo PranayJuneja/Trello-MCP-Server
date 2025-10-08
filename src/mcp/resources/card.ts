@@ -1,8 +1,24 @@
+/**
+ * @fileoverview Defines the handler for the `trello:card` MCP resource.
+ * This module is responsible for fetching detailed information about a specific Trello card,
+ * including its context (board, list), members, labels, checklists, attachments, and comments.
+ * It formats this data into a human-readable summary and a structured object.
+ */
 import { trelloClient } from '../../trello/client.js';
 import { McpContext } from '../server.js';
 import { TrelloCard } from '../../trello/types.js';
 
-export async function readCardResource(uri: string, context: McpContext) {
+/**
+ * Reads and processes a Trello card resource from its URI.
+ * It fetches a comprehensive view of the card and generates a structured object
+ * and a detailed, human-readable summary in Markdown.
+ * @param {string} uri - The MCP resource URI for the card (e.g., `trello:card/{id}`).
+ * @param {McpContext} context - The MCP context, providing access to the logger.
+ * @returns {Promise<{summary: string, card: TrelloCard}>} A promise that resolves to an object
+ * containing the summary and the full Trello card data.
+ * @throws {Error} If the URI format is invalid or the card ID is missing.
+ */
+export async function readCardResource(uri: string, context: McpContext): Promise<{summary: string, card: TrelloCard}> {
   // Extract card ID from URI: trello:card/{id}
   const match = uri.match(/^trello:card\/(.+)$/);
   if (!match) {
@@ -15,19 +31,19 @@ export async function readCardResource(uri: string, context: McpContext) {
   }
   context.logger.info({ cardId }, 'Reading card resource');
   
-  // Get card with comprehensive details
+  // Get card with comprehensive details for a full picture.
   const card = await trelloClient.getCard(cardId, {
-    actions: 'commentCard',
+    actions: 'commentCard', // Fetch comments specifically.
     attachments: true,
     members: true,
     checklists: 'all',
-    board: true,
+    board: true, // Include board context.
     board_fields: 'name,url',
-    list: true,
+    list: true, // Include list context.
     list_fields: 'name',
   });
   
-  // Create a human-readable summary
+  // Create a human-readable summary of the card.
   const summary = createCardSummary(card);
   
   return {
@@ -36,6 +52,13 @@ export async function readCardResource(uri: string, context: McpContext) {
   };
 }
 
+/**
+ * Creates a detailed, human-readable summary of a Trello card in Markdown format.
+ * The summary includes the card's description, context, dates, members, labels,
+ * checklists, attachments, recent comments, and an activity summary.
+ * @param {TrelloCard} card - The Trello card object to summarize.
+ * @returns {string} A string containing the Markdown-formatted summary.
+ */
 function createCardSummary(card: TrelloCard): string {
   const lines: string[] = [];
   
@@ -135,7 +158,7 @@ function createCardSummary(card: TrelloCard): string {
     const comments = card.actions.filter(action => action.type === 'commentCard');
     if (comments.length > 0) {
       lines.push(`## Recent Comments (${comments.length})`);
-      // Show most recent 5 comments
+      // Show most recent 5 comments for brevity.
       const recentComments = comments.slice(0, 5);
       recentComments.forEach(comment => {
         const date = new Date(comment.date);

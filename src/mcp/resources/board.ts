@@ -1,8 +1,24 @@
+/**
+ * @fileoverview Defines the handler for the `trello:board` MCP resource.
+ * This module is responsible for fetching detailed information about a specific Trello board,
+ * including its lists, cards, members, and labels, and then formatting this data into
+ * a human-readable summary and a structured object for consumption by an MCP client.
+ */
 import { trelloClient } from '../../trello/client.js';
 import { McpContext } from '../server.js';
 import { TrelloBoard } from '../../trello/types.js';
 
-export async function readBoardResource(uri: string, context: McpContext) {
+/**
+ * Reads and processes a Trello board resource based on its URI.
+ * It fetches comprehensive details for the specified board and generates both
+ * a structured data object and a human-readable summary.
+ * @param {string} uri - The MCP resource URI for the board (e.g., `trello:board/{id}`).
+ * @param {McpContext} context - The MCP context, containing the logger.
+ * @returns {Promise<{summary: string, board: TrelloBoard}>} A promise that resolves to an object
+ * containing the human-readable summary and the full Trello board object.
+ * @throws {Error} If the URI format is invalid or the board ID is missing.
+ */
+export async function readBoardResource(uri: string, context: McpContext): Promise<{summary: string, board: TrelloBoard}> {
   // Extract board ID from URI: trello:board/{id}
   const match = uri.match(/^trello:board\/(.+)$/);
   if (!match) {
@@ -15,7 +31,7 @@ export async function readBoardResource(uri: string, context: McpContext) {
   }
   context.logger.info({ boardId }, 'Reading board resource');
   
-  // Get board with lists, cards (limited), labels, and members
+  // Get board with lists, cards (limited), labels, and members for a comprehensive view.
   const board = await trelloClient.getBoard(boardId, {
     lists: 'open',
     cards: 'open',
@@ -24,7 +40,7 @@ export async function readBoardResource(uri: string, context: McpContext) {
     fields: 'all',
   });
   
-  // Create a human-readable summary
+  // Create a human-readable summary of the board.
   const summary = createBoardSummary(board);
   
   return {
@@ -33,6 +49,11 @@ export async function readBoardResource(uri: string, context: McpContext) {
   };
 }
 
+/**
+ * Creates a detailed, human-readable summary of a Trello board in Markdown format.
+ * @param {TrelloBoard} board - The Trello board object to summarize.
+ * @returns {string} A string containing the Markdown-formatted summary.
+ */
 function createBoardSummary(board: TrelloBoard): string {
   const lines: string[] = [];
   
@@ -77,7 +98,7 @@ function createBoardSummary(board: TrelloBoard): string {
       lines.push(`### ${list.name} (${listCards.length} cards)`);
       
       if (listCards.length > 0) {
-        // Show up to 10 cards per list
+        // Show up to 10 cards per list for a concise summary.
         const cardsToShow = listCards.slice(0, 10);
         cardsToShow.forEach(card => {
           const dueInfo = card.due ? ` [Due: ${new Date(card.due).toLocaleDateString()}]` : '';
