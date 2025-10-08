@@ -1,5 +1,7 @@
 # Trello MCP Server
 
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/PranayJuneja/Trello-MCP-Poke-Integration)
+
 A Model Context Protocol (MCP) server that provides integration with Trello boards, lists, and cards. This server exposes Trello functionality through MCP tools and resources, allowing AI assistants to interact with Trello data.
 
 ## Features
