@@ -268,8 +268,10 @@ export class TrelloClient {
   }
 
   async createLabel(request: CreateLabelRequest): Promise<TrelloLabel> {
-    return withHighPriorityRateLimit(() =>
-      trelloHttp.post<TrelloLabel>('/labels', null, { params: request })
+    return withHighPriorityRateLimit(() => 
+      trelloHttp.post<TrelloLabel>(`/boards/${request.idBoard}/labels`, null, { 
+        params: { name: request.name, color: request.color } 
+      })
     );
   }
 
